@@ -56,49 +56,47 @@ namespace Microsoft.AspNet.Razor.Parser.TagHelpers.Internal
                         // Get tag name of the current block (doesn't matter if it's an end or start tag)
                         var tagName = GetTagName(childBlock);
 
-                        if (tagName == null)
+                        if (tagName != null)
                         {
-                            continue;
-                        }
-
-                        if (!IsEndTag(childBlock))
-                        {
-                            // We're in a begin tag block
-
-                            if (IsPotentialTagHelper(tagName, childBlock))
+                            if (!IsEndTag(childBlock))
                             {
-                                var descriptors = _provider.GetTagHelpers(tagName);
+                                // We're in a begin tag block
 
-                                // We could be a tag helper, but only if we have descriptors registered
-                                if (descriptors.Any())
+                                if (IsPotentialTagHelper(tagName, childBlock))
                                 {
-                                    // Found a new tag helper block
-                                    TrackTagHelperBlock(new TagHelperBlockBuilder(tagName, descriptors, childBlock));
+                                    var descriptors = _provider.GetTagHelpers(tagName);
 
-                                    // If it's a self closing block then we don't have to worry about nested children 
-                                    // within the tag... complete it.
-                                    if (IsSelfClosing(childBlock))
+                                    // We could be a tag helper, but only if we have descriptors registered
+                                    if (descriptors.Any())
                                     {
-                                        BuildCurrentlyTrackedTagHelperBlock();
-                                    }
+                                        // Found a new tag helper block
+                                        TrackTagHelperBlock(new TagHelperBlockBuilder(tagName, descriptors, childBlock));
 
-                                    continue;
+                                        // If it's a self closing block then we don't have to worry about nested children 
+                                        // within the tag... complete it.
+                                        if (IsSelfClosing(childBlock))
+                                        {
+                                            BuildCurrentlyTrackedTagHelperBlock();
+                                        }
+
+                                        continue;
+                                    }
                                 }
                             }
-                        }
-                        else
-                        {
-                            var currentTagHelper = _tagStack.Count > 0 ? _tagStack.Peek() : null;
-
-                            // Check if it's an "end" tag helper that matches our current tag helper
-                            if (currentTagHelper != null &&
-                                string.Equals(currentTagHelper.TagName, tagName, StringComparison.OrdinalIgnoreCase))
+                            else
                             {
-                                BuildCurrentlyTrackedTagHelperBlock();
-                                continue;
-                            }
+                                var currentTagHelper = _tagStack.Count > 0 ? _tagStack.Peek() : null;
 
-                            // We're in an end tag, there won't be anymore tag helpers nested.
+                                // Check if it's an "end" tag helper that matches our current tag helper
+                                if (currentTagHelper != null &&
+                                    string.Equals(currentTagHelper.TagName, tagName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    BuildCurrentlyTrackedTagHelperBlock();
+                                    continue;
+                                }
+
+                                // We're in an end tag, there won't be anymore tag helpers nested.
+                            }
                         }
 
                         // If we get to here it means that we're a normal html tag.  No need to iterate
@@ -224,7 +222,7 @@ namespace Microsoft.AspNet.Razor.Parser.TagHelpers.Internal
             }
 
             var childSpan = (Span)child;
-            var textSymbol = childSpan.Symbols.FirstHtmlSymbolAs(HtmlSymbolType.Text);
+            var textSymbol = childSpan.Symbols.FirstHtmlSymbolAs(HtmlSymbolType.WhiteSpace | HtmlSymbolType.Text);
 
             return textSymbol != null ? textSymbol.Content : null;
         }
