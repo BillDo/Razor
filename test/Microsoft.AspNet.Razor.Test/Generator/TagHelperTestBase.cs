@@ -40,9 +40,25 @@ namespace Microsoft.AspNet.Razor.Test.Generator
                 _tagHelperDescriptors = tagHelperDescriptors ?? Enumerable.Empty<TagHelperDescriptor>();
             }
 
-            public IEnumerable<TagHelperDescriptor> Resolve(string lookupText)
+            public IEnumerable<TagHelperDescriptor> Resolve(TagHelperDescriptorResolutionContext resolutionContext)
             {
-                return _tagHelperDescriptors;
+                IEnumerable<TagHelperDescriptor> descriptors = null;
+
+                foreach (var directiveDescriptor in resolutionContext.DirectiveDescriptors)
+                {
+                    if (directiveDescriptor.DirectiveType == TagHelperDirectiveType.RemoveTagHelper)
+                    {
+                        // Since we're only working with 1 set of tag helper descriptors if we want to exclude any we
+                        // exclude everything.
+                        descriptors = null;
+                    }
+                    else if (directiveDescriptor.DirectiveType == TagHelperDirectiveType.AddTagHelper)
+                    {
+                        descriptors = _tagHelperDescriptors;
+                    }
+                }
+
+                return descriptors ?? Enumerable.Empty<TagHelperDescriptor>();
             }
         }
 
