@@ -30,14 +30,57 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
         }
 
         /// <inheritdoc />
-        public IEnumerable<TagHelperDescriptor> Resolve(string lookupText)
+        public IEnumerable<TagHelperDescriptor> Resolve([NotNull] TagHelperDescriptorResolutionContext context)
         {
-            var lookupStrings = lookupText?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var resolvedDescriptors = new HashSet<TagHelperDescriptor>(TagHelperDescriptorComparer.Default);
+
+            foreach (var directiveDescriptor in context.DirectiveDescriptors)
+            {
+                var descriptors = Resolve(directiveDescriptor.LookupText);
+
+                if (directiveDescriptor.DirectiveType == TagHelperDirectiveType.RemoveTagHelper)
+                {
+                    resolvedDescriptors.RemoveWhere(descriptor =>
+                        descriptors.Contains(descriptor, TagHelperDescriptorComparer.Default));
+                }
+                else if (directiveDescriptor.DirectiveType == TagHelperDirectiveType.AddTagHelper)
+                {
+                    resolvedDescriptors.UnionWith(descriptors);
+                }
+            }
+
+            return resolvedDescriptors;
+        }
+
+        /// <summary>
+        /// Resolves all <see cref="TagHelperDescriptor"/>s for <see cref="ITagHelper"/>s from the given 
+        /// <paramref name="assemblyName"/>.
+        /// </summary>
+        /// <param name="assemblyName">
+        /// The name of the assembly to resolve <see cref="TagHelperDescriptor"/>s from.
+        /// </param>
+        /// <returns><see cref="TagHelperDescriptor"/>s for <see cref="ITagHelper"/>s from the given
+        /// <paramref name="assemblyName"/>.</returns>
+        protected virtual IEnumerable<TagHelperDescriptor> ResolveDescriptorsInAssembly(string assemblyName)
+        {
+            // Resolve valid tag helper types from the assembly.
+            var tagHelperTypes = _typeResolver.Resolve(assemblyName);
+
+            // Convert types to TagHelperDescriptors
+            var descriptors = tagHelperTypes.SelectMany(TagHelperDescriptorFactory.CreateDescriptors);
+
+            return descriptors;
+        }
+
+        private IEnumerable<TagHelperDescriptor> Resolve(string lookupText)
+        {
+            var lookupStrings = lookupText?.Split(new[] { ',' });
 
             // Ensure that we have valid lookupStrings to work with. Valid formats are:
             // "assemblyName"
             // "typeName, assemblyName"
-            if (string.IsNullOrEmpty(lookupText) ||
+            if (lookupStrings == null ||
+                lookupStrings.Any(string.IsNullOrWhiteSpace) ||
                 (lookupStrings.Length != 1 && lookupStrings.Length != 2))
             {
                 throw new ArgumentException(
