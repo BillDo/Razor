@@ -56,47 +56,51 @@ namespace Microsoft.AspNet.Razor.Parser.TagHelpers.Internal
                         // Get tag name of the current block (doesn't matter if it's an end or start tag)
                         var tagName = GetTagName(childBlock);
 
-                        if (tagName != null)
+                        // Could not determine tag name, it can't be a TagHelper, continue on and track the element.
+                        if (tagName == null)
                         {
-                            if (!IsEndTag(childBlock))
+                            _currentBlock.Children.Add(child);
+                            continue;
+                        }
+
+                        if (!IsEndTag(childBlock))
+                        {
+                            // We're in a begin tag block
+
+                            if (IsPotentialTagHelper(tagName, childBlock))
                             {
-                                // We're in a begin tag block
+                                var descriptors = _provider.GetTagHelpers(tagName);
 
-                                if (IsPotentialTagHelper(tagName, childBlock))
+                                // We could be a tag helper, but only if we have descriptors registered
+                                if (descriptors.Any())
                                 {
-                                    var descriptors = _provider.GetTagHelpers(tagName);
+                                    // Found a new tag helper block
+                                    TrackTagHelperBlock(new TagHelperBlockBuilder(tagName, descriptors, childBlock));
 
-                                    // We could be a tag helper, but only if we have descriptors registered
-                                    if (descriptors.Any())
+                                    // If it's a self closing block then we don't have to worry about nested children 
+                                    // within the tag... complete it.
+                                    if (IsSelfClosing(childBlock))
                                     {
-                                        // Found a new tag helper block
-                                        TrackTagHelperBlock(new TagHelperBlockBuilder(tagName, descriptors, childBlock));
-
-                                        // If it's a self closing block then we don't have to worry about nested children 
-                                        // within the tag... complete it.
-                                        if (IsSelfClosing(childBlock))
-                                        {
-                                            BuildCurrentlyTrackedTagHelperBlock();
-                                        }
-
-                                        continue;
+                                        BuildCurrentlyTrackedTagHelperBlock();
                                     }
-                                }
-                            }
-                            else
-                            {
-                                var currentTagHelper = _tagStack.Count > 0 ? _tagStack.Peek() : null;
 
-                                // Check if it's an "end" tag helper that matches our current tag helper
-                                if (currentTagHelper != null &&
-                                    string.Equals(currentTagHelper.TagName, tagName, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    BuildCurrentlyTrackedTagHelperBlock();
                                     continue;
                                 }
-
-                                // We're in an end tag, there won't be anymore tag helpers nested.
                             }
+                        }
+                        else
+                        {
+                            var currentTagHelper = _tagStack.Count > 0 ? _tagStack.Peek() : null;
+
+                            // Check if it's an "end" tag helper that matches our current tag helper
+                            if (currentTagHelper != null &&
+                                string.Equals(currentTagHelper.TagName, tagName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                BuildCurrentlyTrackedTagHelperBlock();
+                                continue;
+                            }
+
+                            // We're in an end tag, there won't be anymore tag helpers nested.
                         }
 
                         // If we get to here it means that we're a normal html tag.  No need to iterate
