@@ -15,6 +15,21 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
         private static readonly string AssemblyName =
             typeof(TagHelperDescriptorFactoryTest).GetTypeInfo().Assembly.GetName().Name;
 
+        [Theory]
+        [InlineData("myType, myAssembly", "myAssembly")]
+        [InlineData("myAssembly2", "myAssembly2")]
+        public void Resolve_AllowsOverridenResolveDescriptorsInAssembly(string lookupText, string expectedAssemblyName)
+        {
+            // Arrange
+            var tagHelperDescriptorResolver = new OverriddenResolveAssemblyDescriptorResolver();
+
+            // Act
+            tagHelperDescriptorResolver.Resolve(lookupText);
+
+            // Assert
+            Assert.Equal(expectedAssemblyName, tagHelperDescriptorResolver.CalledWithAssemblyName);
+        }
+
         [Fact]
         public void DescriptorResolver_DoesNotReturnInvalidTagHelpersWhenSpecified()
         {
@@ -191,6 +206,18 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
                 _lookupValues.TryGetValue(assemblyName.Name, out types);
 
                 return types?.Select(type => type.GetTypeInfo()) ?? Enumerable.Empty<TypeInfo>();
+            }
+        }
+
+        private class OverriddenResolveAssemblyDescriptorResolver : TagHelperDescriptorResolver
+        {
+            public string CalledWithAssemblyName { get; set; }
+
+            protected override IEnumerable<TagHelperDescriptor> ResolveDescriptorsInAssembly(string assemblyName)
+            {
+                CalledWithAssemblyName = assemblyName;
+
+                return Enumerable.Empty<TagHelperDescriptor>();
             }
         }
     }
