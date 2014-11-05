@@ -196,7 +196,9 @@ namespace Microsoft.AspNet.Razor.Parser
 
             // We want to surface both the parsing and rewriting errors as one unified list of errors because
             // both parsing and rewriting errors affect the end users Razor page.
-            var errors = results.ParserErrors.Concat(rewritingContext.Errors).ToList();
+            var errors = results.ParserErrors.Concat(rewritingContext.Errors)
+                                             .OrderBy(error => error.Location.AbsoluteIndex)
+                                             .ToList();
 
             // Return the new result
             return new ParserResults(syntaxTree, errors);
