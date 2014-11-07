@@ -132,6 +132,11 @@ namespace Microsoft.AspNet.Razor.Test.TagHelpers
                             new MarkupTagHelperBlock("p"))
                     },
                     {
+                        "< p />",
+                        new MarkupBlock(
+                            blockFactory.MarkupTagBlock("< p />"))
+                    },
+                    {
                         "<input <p />",
                         new MarkupBlock(
                             blockFactory.MarkupTagBlock("<input "),

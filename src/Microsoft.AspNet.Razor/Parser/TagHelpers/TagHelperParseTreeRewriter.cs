@@ -228,7 +228,12 @@ namespace Microsoft.AspNet.Razor.Parser.TagHelpers.Internal
             var childSpan = (Span)child;
             var textSymbol = childSpan.Symbols.FirstHtmlSymbolAs(HtmlSymbolType.WhiteSpace | HtmlSymbolType.Text);
 
-            return textSymbol != null ? textSymbol.Content : null;
+            if (textSymbol == null)
+            {
+                return null;
+            }
+
+            return textSymbol.Type == HtmlSymbolType.WhiteSpace ? null :  textSymbol.Content;
         }
 
         private static bool IsSelfClosing(Block beginTagBlock)
