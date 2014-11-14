@@ -16,8 +16,8 @@ namespace Microsoft.AspNet.Razor.TagHelpers
         /// <param name="resolutionContext">
         /// <see cref="TagHelperDescriptorResolutionContext"/> used to resolve descriptors for the Razor page. 
         /// </param>
-        /// <returns>An <see cref="IEnumerable{TagHelperDescriptor}"/> of <see cref="TagHelperDescriptor"/>s resolved 
-        /// using the given <paramref name="resolutionContext"/>.</returns>
+        /// <returns>An <see cref="IEnumerable{TagHelperDescriptor}"/> of <see cref="TagHelperDescriptor"/>s based 
+        /// on the given <paramref name="resolutionContext"/>.</returns>
         IEnumerable<TagHelperDescriptor> Resolve(TagHelperDescriptorResolutionContext resolutionContext);
     }
 }

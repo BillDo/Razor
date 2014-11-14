@@ -37,6 +37,10 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
             }
         }
 
+        private static Type Valid_PlainTagHelperType { get { return typeof(Valid_PlainTagHelper); } }
+
+        private static Type Valid_InheritedTagHelperType { get { return typeof(Valid_InheritedTagHelper); } }
+
         [Theory]
         [InlineData("myType, myAssembly", "myAssembly")]
         [InlineData("myAssembly2", "myAssembly2")]
@@ -44,9 +48,20 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
         {
             // Arrange
             var tagHelperDescriptorResolver = new OverriddenResolveAssemblyDescriptorResolver();
+            var context = new TagHelperDescriptorResolutionContext
+            {
+                DirectiveDescriptors = new[]
+                {
+                    new TagHelperDirectiveDescriptor
+                    {
+                        DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                        LookupText = lookupText
+                    }
+                }
+            };
 
             // Act
-            tagHelperDescriptorResolver.Resolve(lookupText);
+            tagHelperDescriptorResolver.Resolve(context);
 
             // Assert
             Assert.Equal(expectedAssemblyName, tagHelperDescriptorResolver.CalledWithAssemblyName);
@@ -56,6 +71,16 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
         {
             get
             {
+                var assemblyA = AssemblyName;
+                var stringType = typeof(string);
+
+                var assemblyB = stringType.GetTypeInfo().Assembly.GetName().Name;
+                var stringTagHelperDescriptor = 
+                    new TagHelperDescriptor("string", 
+                                            "System.String", 
+                                            assemblyB, 
+                                            ContentBehavior.None);
+
                 return new TheoryData<Dictionary<string, IEnumerable<Type>>, // descriptorAssemblyLookups
                                       IEnumerable<TagHelperDirectiveDescriptor>, // directiveDescriptors
                                       IEnumerable<TagHelperDescriptor>> // expectedDescriptors
@@ -63,114 +88,168 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
                     {
                         new Dictionary<string, IEnumerable<Type>>
                         {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper) } }
+                            { assemblyA, new [] { Valid_PlainTagHelperType } }
                         },
                         new []
                         {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" }
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            }
                         },
                         new [] { Valid_PlainTagHelperDescriptor }
                     },
                     {
                         new Dictionary<string, IEnumerable<Type>>
                         {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper) } },
-                            { "lookup2", new [] { typeof(Valid_InheritedTagHelper) } }
+                            { assemblyA, new [] { Valid_PlainTagHelperType } },
+                            { assemblyB, new [] { stringType } }
                         },
                         new []
                         {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup2" }
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyB
+                            }
+                        },
+                        new [] { Valid_PlainTagHelperDescriptor, stringTagHelperDescriptor }
+                    },
+                    {
+                        new Dictionary<string, IEnumerable<Type>>
+                        {
+                            { assemblyA, new [] { Valid_PlainTagHelperType } },
+                            { assemblyB, new [] { stringType } }
+                        },
+                        new []
+                        {
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = assemblyB
+                            }
+                        },
+                        new [] { Valid_PlainTagHelperDescriptor }
+                    },
+                    {
+                        new Dictionary<string, IEnumerable<Type>>
+                        {
+                            { assemblyA, new [] { Valid_PlainTagHelperType, Valid_InheritedTagHelperType } },
+                            { assemblyB, new [] { stringType } }
+                        },
+                        new []
+                        {
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyB
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = assemblyA
+                            }
+                        },
+                        new [] { stringTagHelperDescriptor }
+                    },
+                    {
+                        new Dictionary<string, IEnumerable<Type>>
+                        {
+                            { assemblyA, new [] { Valid_PlainTagHelperType, Valid_InheritedTagHelperType } }
+                        },
+                        new []
+                        {
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = Valid_PlainTagHelperType.FullName + ", " + assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            }
                         },
                         new [] { Valid_PlainTagHelperDescriptor, Valid_InheritedTagHelperDescriptor }
                     },
                     {
                         new Dictionary<string, IEnumerable<Type>>
                         {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper) } },
-                            { "lookup2", new [] { typeof(Valid_PlainTagHelper), typeof(Valid_InheritedTagHelper) } }
+                            { assemblyA, new [] { Valid_PlainTagHelperType, Valid_InheritedTagHelperType } }
                         },
                         new []
                         {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup2" }
-                        },
-                        new [] { Valid_PlainTagHelperDescriptor, Valid_InheritedTagHelperDescriptor }
-                    },
-                    {
-                        new Dictionary<string, IEnumerable<Type>>
-                        {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper), typeof(Valid_InheritedTagHelper) } },
-                            { "lookup2", new [] { typeof(Valid_PlainTagHelper) } },
-                        },
-                        new []
-                        {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.RemoveTagHelper, LookupText = "lookup2" }
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = Valid_PlainTagHelperType.FullName + ", " + assemblyA
+                            }
                         },
                         new [] { Valid_InheritedTagHelperDescriptor }
                     },
                     {
                         new Dictionary<string, IEnumerable<Type>>
                         {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper), typeof(Valid_InheritedTagHelper) } },
-                            { "lookup2", new [] { typeof(Valid_PlainTagHelper) } },
+                            { assemblyA, new [] { Valid_PlainTagHelperType, Valid_InheritedTagHelperType } },
                         },
                         new []
                         {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.RemoveTagHelper, LookupText = "lookup2" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup2" }
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = Valid_PlainTagHelperType.FullName + ", " + assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            }
                         },
                         new [] { Valid_InheritedTagHelperDescriptor, Valid_PlainTagHelperDescriptor }
                     },
                     {
                         new Dictionary<string, IEnumerable<Type>>
                         {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper) } },
-                            { "lookup2", new [] { typeof(Valid_PlainTagHelper), typeof(Valid_InheritedTagHelper) } },
+                            { assemblyA, new [] { Valid_PlainTagHelperType, Valid_InheritedTagHelperType } },
                         },
                         new []
                         {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.RemoveTagHelper, LookupText = "lookup2" },
-                        },
-                        Enumerable.Empty<TagHelperDescriptor>()
-                    },
-                    {
-                        new Dictionary<string, IEnumerable<Type>>
-                        {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper), typeof(Valid_InheritedTagHelper) } },
-                        },
-                        new []
-                        {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.RemoveTagHelper, LookupText = "lookup1" },
-                        },
-                        Enumerable.Empty<TagHelperDescriptor>()
-                    },
-                    {
-                        new Dictionary<string, IEnumerable<Type>>
-                        {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper), typeof(Valid_InheritedTagHelper) } },
-                            { "lookup2", new [] { typeof(Valid_PlainTagHelper) } },
-                        },
-                        new []
-                        {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.RemoveTagHelper, LookupText = "lookup1" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.RemoveTagHelper, LookupText = "lookup2" },
-                        },
-                        Enumerable.Empty<TagHelperDescriptor>()
-                    },
-                    {
-                        new Dictionary<string, IEnumerable<Type>>
-                        {
-                            { "lookup1", new [] { typeof(Valid_PlainTagHelper), typeof(Valid_InheritedTagHelper) } },
-                        },
-                        new []
-                        {
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" },
-                            new TagHelperDirectiveDescriptor { DirectiveType = TagHelperDirectiveType.AddTagHelper, LookupText = "lookup1" },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
                         },
                         new [] { Valid_InheritedTagHelperDescriptor, Valid_PlainTagHelperDescriptor }
                     }
@@ -198,17 +277,186 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
             var descriptors = tagHelperDescriptorResolver.Resolve(resolutionContext);
 
             // Assert
-            if (expectedDescriptors.Any())
+            Assert.Equal(expectedDescriptors.Count(), descriptors.Count());
+
+            foreach (var expectedDescriptor in expectedDescriptors)
             {
-                foreach (var expectedDescriptor in expectedDescriptors)
+                Assert.Contains(expectedDescriptor, descriptors, TagHelperDescriptorComparer.Default);
+            }
+        }
+
+        public static TheoryData ResolveDirectiveDescriptorsData_EmptyResult
+        {
+            get
+            {
+                var assemblyA = AssemblyName;
+                var stringType = typeof(string);
+
+                var assemblyB = stringType.GetTypeInfo().Assembly.GetName().Name;
+                var stringTagHelperDescriptor =
+                    new TagHelperDescriptor("string",
+                                            "System.String",
+                                            assemblyB,
+                                            ContentBehavior.None);
+
+                return new TheoryData<Dictionary<string, IEnumerable<Type>>, // descriptorAssemblyLookups
+                                      IEnumerable<TagHelperDirectiveDescriptor>, // directiveDescriptors
+                                      IEnumerable<TagHelperDescriptor>> // expectedDescriptors
                 {
-                    Assert.Contains(expectedDescriptor, descriptors, TagHelperDescriptorComparer.Default);
-                }
+                    {
+                        new Dictionary<string, IEnumerable<Type>>
+                        {
+                            { assemblyA, new [] { Valid_PlainTagHelperType } },
+                        },
+                        new []
+                        {
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = assemblyA
+                            },
+                        },
+                        Enumerable.Empty<TagHelperDescriptor>()
+                    },
+                    {
+                        new Dictionary<string, IEnumerable<Type>>
+                        {
+                            { assemblyA, new [] { Valid_PlainTagHelperType, Valid_InheritedTagHelperType } },
+                        },
+                        new []
+                        {
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = Valid_PlainTagHelperType.FullName + ", " + assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = Valid_InheritedTagHelperType.FullName + ", " + assemblyA
+                            }
+                        },
+                        Enumerable.Empty<TagHelperDescriptor>()
+                    },
+                    {
+                        new Dictionary<string, IEnumerable<Type>>
+                        {
+                            { assemblyA, new [] { Valid_PlainTagHelperType, Valid_InheritedTagHelperType } },
+                            { assemblyB, new [] { stringType } },
+                        },
+                        new []
+                        {
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyB
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = assemblyB
+                            }
+                        },
+                        Enumerable.Empty<TagHelperDescriptor>()
+                    },
+                    {
+                        new Dictionary<string, IEnumerable<Type>>
+                        {
+                            { assemblyA, new [] { Valid_PlainTagHelperType, Valid_InheritedTagHelperType } },
+                            { assemblyB, new [] { stringType } },
+                        },
+                        new []
+                        {
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.AddTagHelper,
+                                LookupText = assemblyB
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = Valid_PlainTagHelperType.FullName + ", " + assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = Valid_InheritedTagHelperType.FullName + ", " + assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = stringType.FullName + ", " + assemblyB
+                            }
+                        },
+                        Enumerable.Empty<TagHelperDescriptor>()
+                    },
+                    {
+                        new Dictionary<string, IEnumerable<Type>>(),
+                        new []
+                        {
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = assemblyA
+                            },
+                            new TagHelperDirectiveDescriptor
+                            {
+                                DirectiveType = TagHelperDirectiveType.RemoveTagHelper,
+                                LookupText = Valid_PlainTagHelperType.FullName + ", " + assemblyA
+                            },
+                        },
+                        Enumerable.Empty<TagHelperDescriptor>()
+                    }
+                };
             }
-            else
+        }
+
+        [Theory]
+        [MemberData(nameof(ResolveDirectiveDescriptorsData_EmptyResult))]
+        public void Resolve_CanReturnEmptyDescriptorsBasedOnDirectiveDescriptors(
+            Dictionary<string, IEnumerable<Type>> descriptorAssemblyLookups,
+            IEnumerable<TagHelperDirectiveDescriptor> directiveDescriptors,
+            IEnumerable<TagHelperDescriptor> expectedDescriptors)
+        {
+            // Arrange
+            var tagHelperDescriptorResolver =
+                new TestTagHelperDescriptorResolver(
+                    new LookupBasedTagHelperTypeResolver(descriptorAssemblyLookups));
+            var resolutionContext = new TagHelperDescriptorResolutionContext
             {
-                Assert.Empty(descriptors);
-            }
+                DirectiveDescriptors = directiveDescriptors
+            };
+
+            // Act
+            var descriptors = tagHelperDescriptorResolver.Resolve(resolutionContext);
+
+            // Assert
+            Assert.Empty(descriptors);
         }
 
         [Fact]
@@ -221,19 +469,13 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
 
             // Act
             var descriptors = tagHelperDescriptorResolver.Resolve(
-                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_AbstractTagHelper, MyAssembly");
-            descriptors = descriptors.Concat(tagHelperDescriptorResolver.Resolve(
-                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_GenericTagHelper`, MyAssembly"));
-            descriptors = descriptors.Concat(tagHelperDescriptorResolver.Resolve(
-                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_NestedPublicTagHelper, MyAssembly"));
-            descriptors = descriptors.Concat(tagHelperDescriptorResolver.Resolve(
-                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_NestedInternalTagHelper, MyAssembly"));
-            descriptors = descriptors.Concat(tagHelperDescriptorResolver.Resolve(
-                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_PrivateTagHelper, MyAssembly"));
-            descriptors = descriptors.Concat(tagHelperDescriptorResolver.Resolve(
-                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_ProtectedTagHelper, MyAssembly"));
-            descriptors = descriptors.Concat(tagHelperDescriptorResolver.Resolve(
-                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_InternalTagHelper, MyAssembly"));
+                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_AbstractTagHelper, " + AssemblyName,
+                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_GenericTagHelper`, " + AssemblyName,
+                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_NestedPublicTagHelper, " + AssemblyName,
+                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_NestedInternalTagHelper, " + AssemblyName,
+                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_PrivateTagHelper, " + AssemblyName,
+                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_ProtectedTagHelper, " + AssemblyName,
+                "Microsoft.AspNet.Razor.Runtime.Test.TagHelpers.Invalid_InternalTagHelper, " + AssemblyName);
 
             // Assert
             Assert.Empty(descriptors);
@@ -265,8 +507,7 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
             var descriptors = tagHelperDescriptorResolver.Resolve(lookupText);
 
             // Assert
-            var descriptor = Assert.Single(descriptors);
-            Assert.Equal(Valid_PlainTagHelperDescriptor, descriptor, CompleteTagHelperDescriptorComparer.Default);
+            Assert.Empty(descriptors);
         }
 
         [Fact]
@@ -277,12 +518,15 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
                 new LookupBasedTagHelperTypeResolver(
                     new Dictionary<string, IEnumerable<Type>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "lookupText1", ValidTestableTagHelpers },
-                        { "lookupText2", new Type[]{ typeof(Valid_PlainTagHelper) } }
+                        { AssemblyName, ValidTestableTagHelpers },
+                        {
+                            Valid_PlainTagHelperType.FullName + ", " + AssemblyName,
+                            new Type[] { Valid_PlainTagHelperType }
+                        }
                     }));
 
             // Act
-            var descriptors = resolver.Resolve("lookupText2");
+            var descriptors = resolver.Resolve(Valid_PlainTagHelperType + ", " + AssemblyName);
 
             // Assert
             var descriptor = Assert.Single(descriptors);
@@ -297,7 +541,7 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
                 new LookupBasedTagHelperTypeResolver(
                     new Dictionary<string, IEnumerable<Type>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "lookupText", new Type[]{ typeof(Valid_PlainTagHelper), typeof(Valid_InheritedTagHelper) } },
+                        { AssemblyName, new Type[]{ Valid_PlainTagHelperType, Valid_InheritedTagHelperType } },
                     }));
             var expectedDescriptors = new TagHelperDescriptor[]
             {
@@ -306,7 +550,7 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
             };
 
             // Act
-            var descriptors = resolver.Resolve("lookupText").ToArray();
+            var descriptors = resolver.Resolve(AssemblyName).ToArray();
 
             // Assert
             Assert.Equal(descriptors.Length, 2);
@@ -321,8 +565,11 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
                 new LookupBasedTagHelperTypeResolver(
                     new Dictionary<string, IEnumerable<Type>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "lookupText1", ValidTestableTagHelpers },
-                        { "lookupText2", new Type[]{ typeof(Valid_PlainTagHelper) } }
+                        { AssemblyName, ValidTestableTagHelpers },
+                        {
+                            Valid_PlainTagHelperType.FullName + ", " + AssemblyName,
+                            new Type[]{ Valid_PlainTagHelperType }
+                        }
                     }));
 
             // Act
@@ -369,8 +616,8 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
                 return Resolve(
                     new TagHelperDescriptorResolutionContext
                     {
-                        DirectiveDescriptors = lookupTexts.Select(lookupText =>
-                            new TagHelperDirectiveDescriptor
+                        DirectiveDescriptors = lookupTexts.Select(
+                            lookupText => new TagHelperDirectiveDescriptor
                             {
                                 DirectiveType = TagHelperDirectiveType.AddTagHelper,
                                 LookupText = lookupText
@@ -395,6 +642,11 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
                 _lookupValues.TryGetValue(assemblyName.Name, out types);
 
                 return types?.Select(type => type.GetTypeInfo()) ?? Enumerable.Empty<TypeInfo>();
+            }
+
+            internal override bool IsTagHelper(TypeInfo typeInfo)
+            {
+                return true;
             }
         }
 

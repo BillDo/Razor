@@ -22,7 +22,7 @@ namespace Microsoft.AspNet.Razor.TagHelpers
 
 #if !ASPNETCORE50
         [Fact]
-        public void GetDescriptors_InvokesResolveOnceWithMoreThanOneLookup()
+        public void GetDescriptors_InvokesResolveOnceForAllDirectives()
         {
             // Arrange
             var resolver = new Mock<ITagHelperDescriptorResolver>();

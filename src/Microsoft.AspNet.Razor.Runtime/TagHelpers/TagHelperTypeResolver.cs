@@ -61,7 +61,8 @@ namespace Microsoft.AspNet.Razor.Runtime.TagHelpers
             }
         }
 
-        private static bool IsTagHelper(TypeInfo typeInfo)
+        // Internal for testing, don't want to only use ITagHelper types.
+        internal virtual bool IsTagHelper(TypeInfo typeInfo)
         {
             return typeInfo.IsPublic &&
                    !typeInfo.IsAbstract &&
